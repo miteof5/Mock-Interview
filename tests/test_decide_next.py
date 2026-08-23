@@ -43,7 +43,7 @@ def _base_state(**overrides) -> dict:
             topic_id="t0",
             question="q",
             answer="a",
-            overall_score=7,
+            overall_score=6,
             follow_up_suggestion="FOLLOW_UP",
         ),
         **overrides,
@@ -112,7 +112,38 @@ def test_follow_up_count_max_at_last_topic_returns_end():
     assert "没有更多主题" in result["last_decision"].reason
 
 
-# ====================== 优先级 3：follow_up_suggestion 三选一 ======================
+# ====================== 优先级 3：overall_score >= 合格阈值 → next_topic ======================
+
+def test_high_score_skips_suggestion_to_next_topic():
+    """本轮 overall_score 达到合格阈值：无视 follow_up_suggestion，直接切题。
+
+    即便 suggestion 是 FOLLOW_UP（本应追问），高分回答也直接 next_topic，
+    体现"回答合格即切题，仅低分才追问"的设计。
+    """
+    state = _base_state(
+        last_judgment=AnswerJudgment(
+            topic_id="t0", question="q", answer="a",
+            overall_score=8, follow_up_suggestion="FOLLOW_UP",
+        )
+    )
+    result = decide_next(state)
+    assert result["last_decision"].action == "next_topic"
+    assert "回答合格" in result["last_decision"].reason
+
+
+def test_score_threshold_boundary_7_triggers_next_topic():
+    """边界：overall_score 恰好等于阈值 7 → next_topic（>= 含等号）。"""
+    state = _base_state(
+        last_judgment=AnswerJudgment(
+            topic_id="t0", question="q", answer="a",
+            overall_score=7, follow_up_suggestion="FOLLOW_UP",
+        )
+    )
+    result = decide_next(state)
+    assert result["last_decision"].action == "next_topic"
+
+
+# ====================== 优先级 4：follow_up_suggestion 三选一 ======================
 
 def test_suggestion_follow_up_keeps_topic():
     """建议 FOLLOW_UP：停留在当前主题，刷新 current_topic_id 与 index 对齐。"""
@@ -128,7 +159,7 @@ def test_suggestion_next_topic_advances_index():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=8, follow_up_suggestion="NEXT_TOPIC",
+            overall_score=6, follow_up_suggestion="NEXT_TOPIC",
         )
     )
     result = decide_next(state)
@@ -142,7 +173,7 @@ def test_suggestion_end_finishes_interview():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=9, follow_up_suggestion="END",
+            overall_score=6, follow_up_suggestion="END",
         )
     )
     result = decide_next(state)
@@ -155,7 +186,7 @@ def test_suggestion_empty_defaults_to_follow_up():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="",
+            overall_score=6, follow_up_suggestion="",
         )
     )
     result = decide_next(state)
@@ -167,7 +198,7 @@ def test_suggestion_chinese_end_keyword():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="候选人表现优秀，建议结束面试",
+            overall_score=6, follow_up_suggestion="候选人表现优秀，建议结束面试",
         )
     )
     result = decide_next(state)
@@ -179,7 +210,7 @@ def test_suggestion_chinese_next_topic_keyword():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="此题已充分考察，建议换题",
+            overall_score=6, follow_up_suggestion="此题已充分考察，建议换题",
         )
     )
     result = decide_next(state)
@@ -191,7 +222,7 @@ def test_suggestion_unknown_text_defaults_to_follow_up():
     state = _base_state(
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="随便一段不相关的话",
+            overall_score=6, follow_up_suggestion="随便一段不相关的话",
         )
     )
     result = decide_next(state)
@@ -213,7 +244,7 @@ def test_next_topic_without_outline_raises():
         outline=None,
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="NEXT_TOPIC",
+            overall_score=6, follow_up_suggestion="NEXT_TOPIC",
         ),
     )
     with pytest.raises(ValueError, match="outline 为空"):
@@ -226,7 +257,7 @@ def test_follow_up_without_outline_raises():
         outline=None,
         last_judgment=AnswerJudgment(
             topic_id="t0", question="q", answer="a",
-            overall_score=7, follow_up_suggestion="FOLLOW_UP",
+            overall_score=6, follow_up_suggestion="FOLLOW_UP",
         ),
     )
     with pytest.raises(ValueError, match="outline 为空"):

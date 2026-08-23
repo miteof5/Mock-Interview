@@ -51,7 +51,7 @@ def fake_client(monkeypatch):
     calls = {"jd": [], "resume": []}
 
     class _Stub:
-        def plan_interview(self, jd, resume=None) -> InterviewOutline:
+        def plan_interview(self, jd, resume=None, difficulty="中等") -> InterviewOutline:
             calls["jd"].append(jd)
             calls["resume"].append(resume)
             return _stub_outline()

@@ -113,6 +113,12 @@ def main(argv: list[str] | None = None) -> int:
     # 默认时间戳 session-id，避免重复跑污染同一 thread_id 的 checkpoint
     default_session = f"interview-{datetime.now():%Y%m%d-%H%M%S}"
     parser.add_argument("--session-id", default=default_session, help="会话 id")
+    parser.add_argument(
+        "--difficulty",
+        choices=["简单", "中等", "困难"],
+        default="中等",
+        help="面试难度（默认中等）",
+    )
     # 默认 memory 模式，避免污染生产 sqlite；正式面试可显式切 sqlite 持久化
     parser.add_argument(
         "--checkpoint-mode",
@@ -130,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             "session_id": args.session_id,
             "resume_text": _read_text(args.resume),
             "jd_text": _read_text(args.jd),
+            "difficulty": args.difficulty,
         }
     )
 

@@ -72,8 +72,8 @@ def _ask_first(
 ) -> InterviewQuestion:
     """新主题首问：结合结构化画像、检索知识和历史对话出题。
 
-    新版链路：传结构化 ParsedJD/ParsedResume（都允许 None，解析失败时走兜底），
-    不再传原始文本；全局 difficulty 已废弃，难度由主题内 difficulty+candidate_basis 主导。
+    传结构化 ParsedJD/ParsedResume（都允许 None，解析失败时走兜底），不再传原始文本；
+    全局 difficulty 由 state 读取并下发给客户端，作为出题难度基准与硬上限。
     """
     return client.ask_question(
         state.get("jd"),       # jd_profile: ParsedJD | None
@@ -81,6 +81,7 @@ def _ask_first(
         topic=_topic_text(topic),
         knowledge=state.get("retrieval_results"),
         history=_format_history(state.get("history") or []),
+        difficulty=state.get("difficulty", "中等"),
     )
 
 
@@ -100,4 +101,5 @@ def _ask_follow_up(
         topic=_topic_text(topic),
         question=previous.content,
         answer=answer,
+        difficulty=state.get("difficulty", "中等"),
     )

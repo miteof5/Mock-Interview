@@ -39,7 +39,13 @@ def append_judgments(
     return [*left, right]
 
 
-class InterviewInput(TypedDict):
+class _InterviewInputOptional(TypedDict, total=False):
+    """InterviewInput 的可选项（3.10 无 NotRequired，用 total=False 子类表达可选字段）。"""
+
+    difficulty: str  # 全局面试难度（简单/中等/困难），未传时由 build_initial_state 兜底为"中等"
+
+
+class InterviewInput(_InterviewInputOptional):
     """面试启动时的外部输入：会话标识 + 简历原文 + JD 原文。"""
 
     session_id: str  # 本次面试唯一标识，用于持久化与恢复
@@ -63,6 +69,7 @@ class InterviewState(TypedDict, total=False):
     resume_text: str  # 简历原文，便于解析失败时回退或排查
     jd_text: str  # JD 原文，便于解析失败时回退或排查
     started_at: str  # 会话启动时间（UTC ISO 字符串），写入摘要时不变
+    difficulty: str  # 全局面试难度（简单/中等/困难），贯穿 plan/ask/follow_up
 
     # —— parse_inputs 节点产出 ——
     resume: ParsedResume | None  # 结构化简历；解析失败仍可保持为 None（上层兜底）
@@ -111,6 +118,7 @@ def build_initial_state(
     - 解析/提纲/对话/评分/报告等字段初始置空；
     - 阶段默认为 parsing（首节点 parse_inputs 的前置状态）；
     - max_follow_ups 与 max_questions 从 Settings 拷贝，避免节点跨层读配置；
+    - difficulty 从 input 读取（未传默认"中等"），贯穿 plan/ask/follow_up 出题难度；
     - 可选入参 settings 用于测试时注入 mock 配置。
     """
     config = settings or get_settings()
@@ -119,6 +127,7 @@ def build_initial_state(
         "resume_text": input["resume_text"],
         "jd_text": input["jd_text"],
         "started_at": datetime.now(timezone.utc).isoformat(),
+        "difficulty": input.get("difficulty") or "中等",
         "resume": None,
         "jd": None,
         "outline": None,

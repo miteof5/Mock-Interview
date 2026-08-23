@@ -17,7 +17,8 @@ def plan_interview(state: InterviewState) -> dict:
         raise ValueError("jd（结构化 JD）为空，无法进行面试规划")
 
     resume = state.get("resume")  # 允许 None（简历解析失败时也能按 JD 裸规划）
-    outline = DashScopeClient().plan_interview(jd, resume=resume)
+    difficulty = state.get("difficulty", "中等")  # 全局难度，贯穿规划/出题/追问
+    outline = DashScopeClient().plan_interview(jd, resume=resume, difficulty=difficulty)
     return {
         "outline": outline,
         "stage": "asking",

@@ -5,6 +5,10 @@ from __future__ import annotations
 from interview_agent.models import DecisionResult, NextAction
 from interview_agent.state import InterviewState
 
+# 合格分阈值：本轮综合得分达到该值即视为回答合格，直接切题不再追问。
+# 仅在评分偏低（没答好 / 有错误）时才值得追问；阈值可根据实际面试效果微调（0-10）。
+PASS_SCORE_THRESHOLD = 7.0
+
 
 def _action_from_suggestion(suggestion: str) -> NextAction:
     """从 last_judgment.follow_up_suggestion 中解析三选一动作。"""
@@ -68,7 +72,8 @@ def decide_next(state: InterviewState) -> dict:
 
     1. question_count 达到 max_questions -> end；
     2. follow_up_count 达到 max_follow_ups -> next_topic；
-    3. 其余按 last_judgment.follow_up_suggestion 三选一。
+    3. last_judgment.overall_score >= PASS_SCORE_THRESHOLD -> next_topic（回答合格不再追问）；
+    4. 其余按 last_judgment.follow_up_suggestion 三选一。
     """
     question_count = state.get("question_count", 0)
     max_questions = state.get("max_questions", 0)
@@ -91,6 +96,16 @@ def decide_next(state: InterviewState) -> dict:
     judgment = state.get("last_judgment")
     if judgment is None:
         raise ValueError("缺少 last_judgment，无法决定下一步")
+
+    # 硬判断 3：本轮回答已达合格分 -> 直接切题，不再追问。
+    # 逻辑：回答合格就推进到下一主题，仅在评分偏低（没答好 / 有错误）时才追问。
+    if judgment.overall_score >= PASS_SCORE_THRESHOLD:
+        return _decide(
+            "next_topic",
+            f"本轮 overall_score={judgment.overall_score} >= {PASS_SCORE_THRESHOLD}，回答合格，切题",
+            state,
+        )
+
     action = _action_from_suggestion(judgment.follow_up_suggestion)
     reason = f"last_judgment 建议：{judgment.follow_up_suggestion or '（空）'}"
     return _decide(action, reason, state)

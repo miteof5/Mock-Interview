@@ -8,7 +8,11 @@
 - **Human-in-the-Loop**：`interrupt()` 暂停等待候选人回答，`SqliteSaver` 持久化会话，支持断点恢复
 - **出题与评分分离**：独立 Prompt + 不同 temperature，规避自问自答偏差
 - **RAG 知识库增强**：Markdown 标题语义切块 + Chroma 向量检索，面试问题结合专业知识上下文
-- **自适应难度**：根据候选人简历画像和 JD 要求，为每个主题推导难度档位和考察重点
+- **三级难度选择**：用户手动选择简单 / 中等 / 困难，全局贯穿规划、出题与追问，Prompt 强约束不越档
+- **智能追问控制**：评分 >= 7 分直接切题，仅在回答不合格时追问，避免吃满追问次数导致主题覆盖不足
+- **单问题约束**：Prompt 强制每次只问一个问题，禁止编号列表和多子问题拆分
+- **Web 界面**：FastAPI 后端 + 原生前端，支持文件上传、实时对话、进度展示和报告查看
+- **历史面试记录**：面试结束自动保存到浏览器 localStorage，支持回看完整对话和报告、单条删除
 - **代码侧边界兜底**：题数上限、追问次数、评分维度对齐、缺字段清洗，关键数据不依赖 LLM 正确输出
 - **结构化输出**：全链路 Pydantic 模型约束，简历 / JD / 提纲 / 评分 / 报告均为强类型对象
 
@@ -18,28 +22,30 @@
 | --- | --- |
 | 语言 / 构建 | Python 3.10+，uv，hatchling |
 | Agent 框架 | LangGraph，LangChain |
+| Web 后端 | FastAPI（SSE 事件流 + 静态文件托管） |
+| Web 前端 | 原生 HTML / CSS / JavaScript（无框架） |
 | 向量库 | Chroma（本地持久化） |
 | 检查点 | langgraph-checkpoint-sqlite（SqliteSaver） |
 | LLM | 阿里百炼 API（OpenAI-compatible 协议） |
 | 对话模型 | `qwen-plus`（出题 / 评分可分别配置） |
 | 嵌入模型 | `text-embedding-v4` |
 | 数据模型 | Pydantic v2 + pydantic-settings |
-| 文档解析 | python-docx，pypdf（预留接入） |
+| 文档解析 | python-docx，pypdf |
 | 重试 | tenacity（指数退避，3 次） |
 | 测试 / 代码规范 | pytest，ruff |
 
 ## 面试流程
 
 ```text
-传入简历 + JD
+传入简历 + JD + 难度（简单/中等/困难）
     → parse_inputs      LLM 解析为结构化简历 / JD 对象
-    → plan_interview    生成面试提纲（主题 + 难度 + 考察重点）
+    → plan_interview    生成面试提纲（主题 + 考察重点，难度统一为用户选择值）
     → 循环：
         retrieve_knowledge  按当前主题检索知识库 top-k
-        ask_question        首问或追问（追问必须引用上轮回答）
+        ask_question        首问或追问（单问题，严格按全局难度出题）
         wait_answer         interrupt() 暂停，等候选人输入
         judge_answer        独立评分（4 维度，低 temperature）
-        decide_next         代码边界决策：追问 / 切题 / 结束
+        decide_next         代码边界决策：高分切题 / 追问 / 切题 / 结束
     → generate_report   聚合各轮评分，生成最终评估报告
 ```
 
@@ -58,6 +64,7 @@
 | --- | --- | --- |
 | `max_questions` | 15 | 总题数上限（含追问），达到则强制结束 |
 | `max_follow_ups` | 2 | 单主题最大追问次数，达到则强制切题 |
+| `pass_score_threshold` | 7.0 | 评分达到该值直接切题，不再追问 |
 | `retrieval_top_k` | 4 | 知识库检索返回条数 |
 
 ## 项目结构
@@ -69,6 +76,11 @@ Mock Interview/
 ├── my_resume.md                    # 示例简历
 ├── my_jd.md                        # 示例 JD
 ├── PLANNING.md                     # 项目规划与设计决策
+├── 优化方案-追问控制与难度分级.md    # 追问控制与难度分级的改动方案
+├── frontend/                       # Web 前端（原生 HTML/CSS/JS）
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
 ├── data/
 │   ├── kb/                         # Markdown 知识库源文件
 │   ├── vectorstore/                # Chroma 本地向量库（入库后生成）
@@ -81,6 +93,11 @@ Mock Interview/
 │   ├── models.py                   # Pydantic 领域模型
 │   ├── state.py                    # LangGraph 状态定义 + reducer
 │   ├── graph.py                    # 图组装与编译
+│   ├── web/                        # FastAPI Web 服务
+│   │   ├── app.py                  # 路由 + SSE 事件流 + 静态托管
+│   │   ├── sessions.py             # 会话管理 + LangGraph 运行器
+│   │   ├── schemas.py              # 请求/响应模型
+│   │   └── parsers.py              # 文件上传解析（md/txt/docx/pdf）
 │   ├── nodes/                      # 8 个图节点
 │   │   ├── parse_inputs.py
 │   │   ├── plan_interview.py
@@ -151,8 +168,10 @@ python -m scripts.ingest_kb --kb-path /path/to/kb --reset
 
 ### 4. 运行面试
 
+#### 方式一：命令行（CLI）
+
 ```bash
-python -m scripts.run_interview --resume my_resume.md --jd my_jd.md
+python -m scripts.run_interview --resume my_resume.md --jd my_jd.md --difficulty 中等
 ```
 
 面试 CLI 参数：
@@ -161,6 +180,7 @@ python -m scripts.run_interview --resume my_resume.md --jd my_jd.md
 | --- | --- | --- |
 | `--resume` | （必填） | 简历原文 `.md` 文件路径 |
 | `--jd` | （必填） | JD 原文 `.md` 文件路径 |
+| `--difficulty` | `中等` | 面试难度：`简单` / `中等` / `困难` |
 | `--session-id` | `interview-YYYYMMDD-HHMMSS` | 会话唯一标识 |
 | `--checkpoint-mode` | `memory` | `memory`（进程内，重启即丢）或 `sqlite`（持久化） |
 
@@ -169,6 +189,21 @@ python -m scripts.run_interview --resume my_resume.md --jd my_jd.md
 - 面试官提问后，输入回答并按**空行**提交本题
 - 输入 `quit` 可主动结束整个面试
 - 评分阶段 LLM 评判通常耗时 5–30 秒，CLI 会显示等待提示
+
+#### 方式二：Web 界面
+
+```bash
+uvicorn interview_agent.web.app:app --reload --port 8000
+```
+
+浏览器打开 `http://127.0.0.1:8000`，功能包括：
+
+- 上传简历与 JD 文件（支持 .md / .txt / .docx / .pdf）
+- 选择面试难度（简单 / 中等 / 困难）
+- 实时对话界面，展示面试进度、考察主题、候选人信息
+- SSE 实时推送分析进度、面试官提问、评分结果
+- 面试结束后展示多维度评估报告，支持下载 Markdown 报告
+- 历史面试记录自动保存到浏览器本地，可回看完整对话与报告
 
 ### 5. 运行测试
 
@@ -218,6 +253,19 @@ LANGSMITH_PROJECT=mock
 - `ask_question` 使用 `temperature=0.8`，允许问题灵活多样
 - `judge_answer` 使用 `temperature=0.2`，保持评分严格低随机性
 - 两者使用独立的 System Prompt，避免同一模型既当选手又当裁判
+
+### 三级难度策略
+
+- 用户在启动时选择全局难度（简单 / 中等 / 困难），贯穿规划、出题与追问全链路
+- `plan_interview` 阶段 Prompt 强制所有主题 difficulty 统一等于用户选择值，代码侧再强制回填兜底
+- `ask_question` / `follow_up` 阶段 Prompt 给出每档难度的具体出题标准，要求严格按档出题、不得越档
+- 回答错误时可在当前档位内降一层验证基础理解，但不得向上突破全局难度上限
+
+### 追问控制与单问题约束
+
+- **高分直接切题**：`decide_next` 节点中，评分 `overall_score >= 7.0` 时直接切题，不再追问，避免吃满追问次数导致主题覆盖不足
+- **优先级顺序**：题数上限 → 追问次数上限 → 高分切题 → LLM suggestion，代码侧硬判断优先于模型建议
+- **单问题约束**：出题与追问 Prompt 强制每次只问一个核心问题，禁止编号列表和多子问题拆分，确保候选人可在一段文字内回答
 
 ### 代码侧兜底策略
 

@@ -73,7 +73,7 @@ class FakeClient:
             keywords=["Python", "分布式"],
         )
 
-    def plan_interview(self, jd, resume=None) -> InterviewOutline:
+    def plan_interview(self, jd, resume=None, difficulty="中等") -> InterviewOutline:
         # 新版 client：参数是结构化 ParsedJD + ParsedResume|None；桩实现只用 jd.raw_text 便于断言
         jd_text = getattr(jd, "raw_text", str(jd))
         self.calls["plan_interview"].append({"jd_text": jd_text, "has_resume": resume is not None})
@@ -84,7 +84,7 @@ class FakeClient:
             ]
         )
 
-    def ask_question(self, jd_profile, resume_profile, *, topic, knowledge, history):
+    def ask_question(self, jd_profile, resume_profile, *, topic, knowledge, history, difficulty):
         # 新版 client：前两个位置参数是结构化画像 ParsedJD|None / ParsedResume|None
         self.calls["ask_question"].append({"topic": topic})
         return InterviewQuestion(
@@ -93,7 +93,7 @@ class FakeClient:
             question_type="open",
         )
 
-    def follow_up(self, *, topic, question, answer):
+    def follow_up(self, *, topic, question, answer, difficulty):
         self.calls["follow_up"].append({
             "topic": topic,
             "question": question,
@@ -122,7 +122,7 @@ class FakeClient:
             topic_id="t0",
             question=question,
             answer=answer,
-            overall_score=7.0,
+            overall_score=6.0,
             scores=[
                 ScoreItem(dimension="专业准确性", score=8.0, evidence="ok"),
             ],
@@ -249,7 +249,7 @@ def test_single_round_state_artifacts(mock_dependencies):
 
     # judgments 累积了 1 条
     assert len(result["judgments"]) == 1
-    assert result["judgments"][0].overall_score == 7.0
+    assert result["judgments"][0].overall_score == 6.0
 
     # history 含 interviewer 首问 + candidate 回答 = 2 条
     assert len(result["history"]) == 2

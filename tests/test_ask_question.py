@@ -65,7 +65,9 @@ def fake_client(monkeypatch):
 
     class _Stub:
         # 新版签名：前两个位置参数是 ParsedJD|None / ParsedResume|None
-        def ask_question(self, jd_profile, resume_profile, *, topic, knowledge, history):
+        def ask_question(
+            self, jd_profile, resume_profile, *, topic, knowledge, history, difficulty
+        ):
             calls["ask_question"].append({
                 "jd_profile": jd_profile,
                 "resume_profile": resume_profile,
@@ -79,7 +81,7 @@ def fake_client(monkeypatch):
                 question_type="open",
             )
 
-        def follow_up(self, *, topic, question, answer):
+        def follow_up(self, *, topic, question, answer, difficulty):
             calls["follow_up"].append({
                 "topic": topic,
                 "question": question,

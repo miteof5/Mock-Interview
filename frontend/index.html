@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock Interview · AI 模拟面试</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">Mock Interview</span>
+      <span class="brand-sub">AI 模拟面试</span>
+    </div>
+    <div class="status-pill" id="status-pill">
+      <span class="pill-dot"></span>
+      <span id="status-text">准备就绪</span>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="view active" id="setup-view">
+      <div class="setup-wrap">
+        <div class="setup-head">
+          <h1>开始模拟面试</h1>
+          <p>上传简历与岗位 JD 后开始</p>
+        </div>
+
+        <div class="upload-grid">
+          <label class="upload-panel" id="resume-panel" for="resume-input">
+            <span class="panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+                <path d="M12 15V4"/>
+                <path d="m8 8 4-4 4 4"/>
+              </svg>
+            </span>
+            <span class="panel-title">简历</span>
+            <span class="panel-meta" id="resume-meta">未上传</span>
+            <span class="file-btn" id="resume-btn">选择文件</span>
+            <input type="file" id="resume-input" accept=".md,.txt,.docx,.pdf" hidden>
+          </label>
+
+          <label class="upload-panel" id="jd-panel" for="jd-input">
+            <span class="panel-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+                <path d="M12 15V4"/>
+                <path d="m8 8 4-4 4 4"/>
+              </svg>
+            </span>
+            <span class="panel-title">岗位 JD</span>
+            <span class="panel-meta" id="jd-meta">未上传</span>
+            <span class="file-btn" id="jd-btn">选择文件</span>
+            <input type="file" id="jd-input" accept=".md,.txt,.docx,.pdf" hidden>
+          </label>
+        </div>
+
+        <div class="difficulty-group">
+          <span class="difficulty-label">面试难度</span>
+          <div class="difficulty-options">
+            <label class="diff-option">
+              <input type="radio" name="difficulty" value="简单">
+              <span>简单</span>
+            </label>
+            <label class="diff-option">
+              <input type="radio" name="difficulty" value="中等" checked>
+              <span>中等</span>
+            </label>
+            <label class="diff-option">
+              <input type="radio" name="difficulty" value="困难">
+              <span>困难</span>
+            </label>
+          </div>
+        </div>
+
+        <p class="format-hint">支持 .md / .txt / .docx / .pdf</p>
+        <button class="primary-btn start-btn" id="start-btn" disabled>开始面试</button>
+      </div>
+    </section>
+
+    <section class="view" id="history-view">
+      <div class="history-wrap">
+        <div class="history-head">
+          <h1>历史面试</h1>
+          <button class="ghost-btn" id="history-back" type="button">返回</button>
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">暂无历史记录</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="analyzing-view">
+      <div class="analyze-wrap">
+        <div class="analyze-main">
+          <div class="analyze-head">
+            <h1>正在准备面试</h1>
+            <span class="elapsed" id="elapsed">00:00</span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+
+          <ol class="step-list" id="step-list">
+            <li class="step" data-step="0">
+              <span class="step-dot"></span>
+              <span class="step-label">已接收简历与 JD</span>
+            </li>
+            <li class="step" data-step="1">
+              <span class="step-dot"></span>
+              <span class="step-label">正在分析简历与 JD</span>
+            </li>
+            <li class="step" data-step="2">
+              <span class="step-dot"></span>
+              <span class="step-label">正在规划面试</span>
+            </li>
+            <li class="step" data-step="3">
+              <span class="step-dot"></span>
+              <span class="step-label">正在构建知识库检索</span>
+            </li>
+            <li class="step" data-step="4">
+              <span class="step-dot"></span>
+              <span class="step-label">面试准备就绪</span>
+            </li>
+          </ol>
+
+          <div class="analyze-error hidden" id="analyze-error">
+            <span id="analyze-error-text">分析失败，请重试</span>
+            <button class="ghost-btn" id="retry-btn" type="button">返回重试</button>
+          </div>
+        </div>
+
+        <aside class="analyze-side">
+          <div class="info-panel">
+            <div class="info-row">
+              <span>简历</span>
+              <strong id="side-resume">-</strong>
+            </div>
+            <div class="info-row">
+              <span>岗位 JD</span>
+              <strong id="side-jd">-</strong>
+            </div>
+            <div class="info-row">
+              <span>目标岗位</span>
+              <strong id="side-role">解析中</strong>
+            </div>
+            <div class="info-row">
+              <span>考察主题</span>
+              <strong id="side-topics">规划中</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="interview-view">
+      <div class="interview-wrap">
+        <aside class="interview-side">
+          <div class="info-panel progress-panel">
+            <div class="panel-label">面试进度</div>
+            <div class="progress-number">
+              <strong id="current-num">1</strong>
+              <span>/ 15</span>
+            </div>
+            <div class="progress-track small">
+              <div class="progress-fill" id="question-progress"></div>
+            </div>
+            <div class="panel-sub" id="progress-sub">已完成 0 题</div>
+          </div>
+
+          <div class="info-panel topics-panel">
+            <div class="panel-label">考察主题</div>
+            <ul class="topic-list" id="topic-list"></ul>
+          </div>
+
+          <div class="info-panel candidate-panel">
+            <div class="panel-label">候选人</div>
+            <div class="candidate-name" id="candidate-name">候选人 A</div>
+            <div class="candidate-meta" id="candidate-role">目标岗位解析中</div>
+            <div class="candidate-meta" id="candidate-company">目标公司解析中</div>
+          </div>
+        </aside>
+
+        <div class="chat-shell">
+          <div class="chat-header">
+            <div class="chat-interviewer">AI 面试官</div>
+            <div class="chat-meta" id="chat-meta">第 1 题</div>
+            <button class="text-btn" id="end-btn" type="button">结束面试</button>
+            <button class="text-btn hidden" id="history-return-btn" type="button">返回历史</button>
+          </div>
+
+          <div class="chat-body" id="chat-body"></div>
+
+          <div class="composer">
+            <textarea id="answer-input" rows="3" placeholder="输入你的回答"></textarea>
+            <button class="primary-btn send-btn" id="send-btn" type="button" disabled>发送</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="report-view">
+      <div class="report-wrap">
+        <div class="report-head">
+          <h1>面试报告</h1>
+          <span class="report-session" id="report-session">session-id</span>
+        </div>
+
+        <div class="report-summary">
+          <div class="score-block">
+            <div class="score-num" id="overall-score">8.2</div>
+            <div class="score-cap">/ 10</div>
+          </div>
+          <div class="summary-copy">
+            <div class="panel-label">整体评语</div>
+            <p id="summary-text">候选人整体表现扎实，技术原理理解清晰，在工程落地和边界设计方面有较好的意识。</p>
+          </div>
+        </div>
+
+        <div class="report-section">
+          <div class="panel-label">维度得分</div>
+          <div class="dimension-list" id="dimension-list"></div>
+        </div>
+
+        <div class="report-section">
+          <div class="panel-label">改进建议</div>
+          <ul class="suggestion-list" id="suggestion-list"></ul>
+        </div>
+
+        <div class="report-foot">
+          <span id="report-meta">本次面试共 15 题</span>
+          <div class="report-actions">
+            <button class="ghost-btn" id="history-btn" type="button">查看历史</button>
+            <button class="ghost-btn" id="download-btn" type="button">下载报告</button>
+            <button class="primary-btn" id="restart-btn" type="button">再来一次</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

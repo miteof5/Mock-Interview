@@ -56,7 +56,7 @@ class InterviewTopic(BaseModel):
     id: str  # 主题唯一标识，用于关联提问与评分
     title: str  # 主题标题
     focus: str  # 该主题重点考察方向
-    # 新版 prompt 增加：单主题难度档位（基础 / 中等 / 进阶），由 LLM 根据 candidate_basis 自适应推导
+    # 难度档位（简单 / 中等 / 困难）；全局难度模式下由 plan_interview 强制回填为用户选择的难度
     difficulty: str = "中等"
     # 新版 prompt 增加：候选人在该主题方向上的实际经历证据等级，供出题端匹配深度
     candidate_basis: str = "仅JD要求"

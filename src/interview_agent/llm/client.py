@@ -284,6 +284,7 @@ class DashScopeClient:
         jd: ParsedJD,
         resume: ParsedResume | None = None,
         *,
+        difficulty: str = "中等",
         model: str | None = None,
         temperature: float = 0.3,
     ) -> InterviewOutline:
@@ -291,6 +292,9 @@ class DashScopeClient:
 
         新版 prompts 原则：下游不再传递 raw 文本，只使用解析后的结构化数据。
         temperature=0.3：既保证覆盖 must_have，又允许主题组织形式有一定灵活度。
+
+        difficulty 为用户选择的全局难度（简单/中等/困难），写入 prompt 约束所有主题；
+        代码侧再强制把每个 topic.difficulty 回填为该值，避免 LLM 自行推导产生漂移。
         """
         # 把结构化对象序列化为缩进 JSON，便于 LLM 理解字段层级
         jd_profile = jd.model_dump_json(indent=2)
@@ -300,14 +304,20 @@ class DashScopeClient:
             else "（候选人画像暂无，按 JD 要求与通用情况出题）"
         )
         prompt = PLAN_INTERVIEW_PROMPT.format(
-            jd_profile=jd_profile, resume_profile=resume_profile
+            jd_profile=jd_profile,
+            resume_profile=resume_profile,
+            difficulty=difficulty,
         )
-        return self.chat(
+        outline = self.chat(
             prompt,
             InterviewOutline,
             model=model or self.settings.interviewer_model,
             temperature=temperature,
         )
+        # 代码侧强制回填：全局难度模式下，每个主题 difficulty 统一等于用户选择值
+        for topic in outline.topics:
+            topic.difficulty = difficulty
+        return outline
 
     # ====================== 语义化入口：提问与追问 ======================
 
@@ -319,13 +329,15 @@ class DashScopeClient:
         knowledge: list[str] | list[KnowledgeChunk] | None,
         history: str,
         *,
+        difficulty: str = "中等",
         model: str | None = None,
         temperature: float = 0.8,
     ) -> InterviewQuestion:
         """首问或切换主题时出题 → InterviewQuestion。
 
-        新版 prompts：使用结构化画像（jd_profile / resume_profile）替代原始文本传递。
-        难度不再靠全局 difficulty 参数，而是依赖主题内 difficulty + candidate_basis 自适应。
+        使用结构化画像（jd_profile / resume_profile）替代原始文本传递。
+        difficulty 为用户选择的全局难度（简单/中等/困难），作为出题基准与硬上限，
+        写入 prompt 约束 LLM 不得超出该范围；主题内 candidate_basis 仅作背景参考。
         temperature=0.8：出题允许灵活多样，避免千篇一律；prompt 内已约束首问/换题
         时不得使用 question_type=follow_up。
         """
@@ -346,6 +358,7 @@ class DashScopeClient:
             topic=topic,
             knowledge=self.format_knowledge(knowledge),
             history=history,
+            difficulty=difficulty,
         )
         return self.chat(
             prompt,
@@ -360,16 +373,22 @@ class DashScopeClient:
         question: str,
         answer: str,
         *,
+        difficulty: str = "中等",
         model: str | None = None,
         temperature: float = 0.7,
     ) -> InterviewQuestion:
         """针对上一轮回答生成追问 → InterviewQuestion。
 
+        difficulty 为用户选择的全局难度（简单/中等/困难），作为追问难度上限，
+        写入 prompt 约束不得超出该范围；追问仍须紧扣上一轮回答的具体内容。
         temperature=0.7：追问需要创造力但不能太跳脱；prompt 内强制
         question_type="follow_up"，即便 LLM 误输出其它枚举值，此处也会覆盖。
         """
         prompt = FOLLOW_UP_PROMPT.format(
-            topic=topic, question=question, answer=answer
+            topic=topic,
+            question=question,
+            answer=answer,
+            difficulty=difficulty,
         )
         result = self.chat(
             prompt,
