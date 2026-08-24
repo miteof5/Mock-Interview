@@ -38,6 +38,7 @@ htmlcov/
 data/vectorstore/
 data/sessions/
 data/kb/
+data/parse_cache/
 
 # ============================================================
 # IDE / 编辑器

@@ -19,6 +19,13 @@ _NODE_STATUS = {
     "generate_report": "reporting",
 }
 
+# 初始流程节点完成后，下一个正在执行的节点状态（解决前端状态滞后一个节点的问题）
+_NEXT_STATUS = {
+    "parse_inputs": "planning",
+    "plan_interview": "preparing_knowledge",
+    "retrieve_knowledge": "asking",
+}
+
 
 def _attr(obj: Any, name: str, default: Any = None) -> Any:
     if isinstance(obj, dict):
@@ -114,7 +121,7 @@ class Session:
             return
         self._started = True
         self.status = "processing"
-        await self.publish({"type": "status", "data": {"status": "created"}})
+        await self.publish({"type": "status", "data": {"status": "analyzing"}})
         self._task = asyncio.create_task(self._run_initial(manager))
 
     async def resume(self, manager: "SessionManager", answer: str) -> None:
@@ -276,7 +283,8 @@ class SessionManager:
             if not isinstance(chunk, dict):
                 continue
             for node_name in chunk:
-                status = _NODE_STATUS.get(node_name)
+                # 优先发送下一个节点的状态（当前节点已完成，正在执行下一个）
+                status = _NEXT_STATUS.get(node_name) or _NODE_STATUS.get(node_name)
                 if status:
                     session.publish_from_thread(
                         {"type": "status", "data": {"status": status}}

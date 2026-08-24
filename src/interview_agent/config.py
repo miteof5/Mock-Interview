@@ -42,9 +42,10 @@ class Settings(BaseSettings):
     kb_path: Path = PROJECT_ROOT / "data" / "kb"
     kb_vector_path: Path = PROJECT_ROOT / "data" / "vectorstore"
     db_path: Path = PROJECT_ROOT / "data" / "sessions" / "interview.sqlite"
+    parse_cache_path: Path = PROJECT_ROOT / "data" / "parse_cache"
 
-    interviewer_model: str = "qwen-plus"
-    judge_model: str = "qwen-plus"
+    interviewer_model: str = "qwen3.7-flash"
+    judge_model: str = "qwen3.7-flash"
     embedding_model: str = "text-embedding-v4"
 
     retrieval_top_k: int = Field(default=4, ge=1)
@@ -53,7 +54,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def resolve_relative_paths(self) -> "Settings":
-        for name in ("kb_path", "kb_vector_path", "db_path"):
+        for name in ("kb_path", "kb_vector_path", "db_path", "parse_cache_path"):
             path = getattr(self, name)
             if not path.is_absolute():
                 setattr(self, name, PROJECT_ROOT / path)
